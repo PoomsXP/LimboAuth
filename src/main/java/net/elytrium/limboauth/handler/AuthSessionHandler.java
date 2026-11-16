@@ -57,7 +57,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class AuthSessionHandler implements LimboSessionHandler {
 
   public static final CodeVerifier TOTP_CODE_VERIFIER = new DefaultCodeVerifier(new DefaultCodeGenerator(), new SystemTimeProvider());
-  private static final BCrypt.Verifyer HASH_VERIFIER = BCrypt.verifyer();
   private static final BCrypt.Hasher HASHER = BCrypt.withDefaults();
 
   private static Component ratelimited;
@@ -388,7 +387,7 @@ public class AuthSessionHandler implements LimboSessionHandler {
 
   private boolean checkPasswordLength(String password) {
     int length = password.length();
-    if (length > Settings.IMP.MAIN.MAX_PASSWORD_LENGTH) {
+    if (length > Settings.IMP.MAIN.MAX_PASSWORD_LENGTH || !PasswordVerifier.isBcryptCompatible(password)) {
       this.proxyPlayer.sendMessage(registerPasswordTooLong);
       return false;
     } else if (length < Settings.IMP.MAIN.MIN_PASSWORD_LENGTH) {
@@ -528,14 +527,12 @@ public class AuthSessionHandler implements LimboSessionHandler {
 
   public static boolean checkPassword(String password, RegisteredPlayer player, Dao<RegisteredPlayer, String> playerDao) {
     String hash = player.getHash();
-    boolean isCorrect = HASH_VERIFIER.verify(
-        password.getBytes(StandardCharsets.UTF_8),
-        hash.replace("BCRYPT$", "$2a$").getBytes(StandardCharsets.UTF_8)
-    ).verified;
+    boolean bcryptCompatible = PasswordVerifier.isBcryptCompatible(password);
+    boolean isCorrect = PasswordVerifier.verify(password, hash);
 
     if (!isCorrect && migrationHash != null) {
       isCorrect = migrationHash.checkPassword(hash, password);
-      if (isCorrect) {
+      if (isCorrect && bcryptCompatible) {
         player.setPassword(password);
         try {
           playerDao.update(player);

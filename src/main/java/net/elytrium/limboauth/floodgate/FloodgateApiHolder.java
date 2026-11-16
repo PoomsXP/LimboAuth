@@ -35,7 +35,12 @@ public class FloodgateApiHolder {
     return this.floodgateApi.isFloodgatePlayer(uuid);
   }
 
-  public int getPrefixLength() {
-    return this.floodgateApi.getPlayerPrefix().length();
+  public boolean isFloodgateProfile(UUID uuid) {
+    return this.floodgateApi.isFloodgatePlayer(uuid) || this.floodgateApi.isFloodgateId(uuid);
+  }
+
+  public String removePrefix(String username) {
+    String prefix = this.floodgateApi.getPlayerPrefix();
+    return username.startsWith(prefix) ? username.substring(prefix.length()) : username;
   }
 }

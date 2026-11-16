@@ -557,8 +557,9 @@ public class LimboAuth {
   }
 
   public void authPlayer(Player player) {
-    boolean isFloodgate = !Settings.IMP.MAIN.FLOODGATE_NEED_AUTH && this.floodgateApi.isFloodgatePlayer(player.getUniqueId());
-    if (!isFloodgate && this.isForcedPreviously(player.getUsername()) && this.isPremium(player.getUsername())) {
+    boolean floodgatePlayer = this.floodgateApi != null && this.floodgateApi.isFloodgatePlayer(player.getUniqueId());
+    boolean bypassFloodgateAuth = !Settings.IMP.MAIN.FLOODGATE_NEED_AUTH && floodgatePlayer;
+    if (!bypassFloodgateAuth && this.isForcedPreviously(player.getUsername()) && this.isPremium(player.getUsername())) {
       player.disconnect(this.reconnectKick);
       return;
     }
@@ -569,7 +570,8 @@ public class LimboAuth {
     }
 
     String nickname = player.getUsername();
-    if (!this.nicknameValidationPattern.matcher((isFloodgate) ? nickname.substring(this.floodgateApi.getPrefixLength()) : nickname).matches()) {
+    String nicknameToValidate = floodgatePlayer ? this.floodgateApi.removePrefix(nickname) : nickname;
+    if (!this.nicknameValidationPattern.matcher(nicknameToValidate).matches()) {
       player.disconnect(this.nicknameInvalidKick);
       return;
     }
@@ -579,7 +581,7 @@ public class LimboAuth {
     boolean onlineMode = player.isOnlineMode();
     TaskEvent.Result result = TaskEvent.Result.NORMAL;
 
-    if (onlineMode || isFloodgate) {
+    if (onlineMode || bypassFloodgateAuth) {
       if (registeredPlayer == null || registeredPlayer.getHash().isEmpty()) {
         RegisteredPlayer nicknameRegisteredPlayer = registeredPlayer;
         registeredPlayer = AuthSessionHandler.fetchInfo(this.playerDao, player.getUniqueId());
